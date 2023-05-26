@@ -20,7 +20,7 @@ class MsConnection:
 
     def __init__(self, store: str, agent: str, token: str, safe_mode: bool = True):
         self.store = store
-        self.api_path = f"https://api.mystore.no/shops/{self.store}"
+        self.api_path = f"https://api.XXX.no/shops/{self.store}"
         self.agent = agent
         self.token = token
         self.safe_mode = safe_mode
