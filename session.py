@@ -1,6 +1,42 @@
 from urllib.parse import urljoin
 import requests
 import exceptions
+import logging
+import copy
+
+
+class QueueSystem:
+    """
+    1. Add jobs to the system. First thought is to have these as tuples with necessary info
+    2. Add some tracker that monitors amount of requests over time
+    3. Make sure requests dont go above the rate limit
+
+    note: AS long as you have less than 120 requests to send per minute you don't actually have to limit. You could
+    send all over 10 seconds, but you will have to wait 50 seconds before sending anything new.
+
+    """
+    def __init__(self, rate: int = 120):
+        self.rate = rate
+        self.queue = []
+
+    def add(
+            self,
+            endpoint: str,
+            method: str,
+            data: str, request_type: str = "request",
+            additional_info: str | None = None
+    ):
+        request = (endpoint, method, data)
+        if additional_info is not None:
+            request += additional_info
+        self.queue.append(request)
+
+    def process(self):
+        """
+        Sends all requests.
+        :return:
+        """
+        pass
 
 
 class Requestor:
@@ -8,18 +44,32 @@ class Requestor:
         self.session = session
         self.base_url = f"https://api.mystore.no/shops/{store}/"
 
-    def _request(self, method: str, path: str, vnd: bool = True, data: str | None = None):
-
+    def _get_headers(self, vnd: bool, content_type: str | None):
+        session_headers = copy.copy(self.session.headers)
         if not vnd:
-            self.session.headers['Accept'] = 'application/json'
+            session_headers["Accept"] = "application/json"
+            session_headers["Content-Type"] = "application/json"
+        if content_type is not None:
+            session_headers["Content-Type"] = content_type
+        return session_headers
 
-        url = urljoin(self.base_url, path) if path[0] != "h" else path
+    def _request(
+            self,
+            method: str,
+            path: str,
+            vnd: bool = True,
+            data: str | None = None,
+            content_type: str | None = None
+    ):
+
+        url = urljoin(self.base_url, path) if not path.startswith("http") else path
+        logging.debug(url)
 
         try:
             response = self.session.request(
                 method,
                 url,
-                headers=self.session.headers,
+                headers=self._get_headers(vnd, content_type),
                 data=data,
             )
 
@@ -33,14 +83,23 @@ class Requestor:
     def get(self, path: str, vnd: bool = True):
         return self._request('GET', path, vnd=vnd)
 
-    def post(self, path: str, data: str, vnd: bool = True):
+    def post(self, path: str, data: str | dict, vnd: bool = True):
         return self._request('POST', path, vnd=vnd, data=data)
 
-    def patch(self, path: str, data: str, vnd: bool = True):
+    def patch(self, path: str, data: str | dict, vnd: bool = True):
         return self._request('PATCH', path, vnd=vnd, data=data)
 
     def delete(self, path: str, vnd: bool = True):
         return self._request('DELETE', path, vnd=vnd)
+
+    def upload_image(self, data: str):
+        return self._request(
+            'POST',
+            'images',
+            vnd=False,
+            data=data,
+            content_type='multipart/form-data; boundary=---BOUNDARY'
+        )
 
     def get_paginated(self, endpoint: str):
         next_page: str | int = endpoint
@@ -61,6 +120,12 @@ class Requestor:
 
 
 class TokenSession(requests.Session):
+
+    """
+    A Requests session with some custom headers made specifically for the Client class in MsConnection.py
+    Requires an API token from auth.mystore.no and User-Agent.
+    """
+
     def __init__(self, token: str, agent: str):
         super().__init__()
         self.headers['User-Agent'] = agent

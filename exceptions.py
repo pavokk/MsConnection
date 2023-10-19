@@ -65,3 +65,11 @@ class ResponseError(ApiError):
             response.raise_for_status()
         except Exception as e:
             return e
+
+
+class EndpointPermissionError(Exception):
+    pass
+
+
+class MissingID(Exception):
+    pass
