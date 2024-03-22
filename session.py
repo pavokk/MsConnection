@@ -1,11 +1,15 @@
+import os
+import time
 from urllib.parse import urljoin
 import requests
-import exceptions
 import logging
 import copy
 
+from .MsExceptions import MsExceptions
+# from .exceptions import ApiError, ResponseError
 
-class QueueSystem:
+
+class Queue:
     """
     1. Add jobs to the system. First thought is to have these as tuples with necessary info
     2. Add some tracker that monitors amount of requests over time
@@ -59,7 +63,8 @@ class Requestor:
             path: str,
             vnd: bool = True,
             data: str | None = None,
-            content_type: str | None = None
+            content_type: str | None = None,
+            files: dict | None = None
     ):
 
         url = urljoin(self.base_url, path) if not path.startswith("http") else path
@@ -71,12 +76,13 @@ class Requestor:
                 url,
                 headers=self._get_headers(vnd, content_type),
                 data=data,
+                files=files
             )
 
         except requests.RequestException as e:
-            raise exceptions.ApiError(e)
+            raise MsExceptions.ApiError(e)
         if not response.ok:
-            raise exceptions.ResponseError(response)
+            raise MsExceptions.ResponseError(response)
 
         return response
 
@@ -92,22 +98,12 @@ class Requestor:
     def delete(self, path: str, vnd: bool = True):
         return self._request('DELETE', path, vnd=vnd)
 
-    def upload_image(self, data: str):
-        return self._request(
-            'POST',
-            'images',
-            vnd=False,
-            data=data,
-            content_type='multipart/form-data; boundary=---BOUNDARY'
-        )
-
     def get_paginated(self, endpoint: str):
         next_page: str | int = endpoint
         output = list()
 
-        while type(next_page) == str:  # If theres no next page in the response we set next_page to int 0
+        while type(next_page) is str:  # If theres no next page in the response we set next_page to int 0
             response = self.get(next_page).json()
-
             for data in response["data"]:
                 output.append(data)
 
@@ -115,6 +111,8 @@ class Requestor:
                 next_page = response["links"]["next"]
             else:
                 next_page = 0
+
+            time.sleep(0.5)
 
         return output
 

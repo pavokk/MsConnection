@@ -1,7 +1,6 @@
 from importlib import metadata
 from .MsConnection import Client
 from .session import TokenSession
-from .functions import *
 
 ms_connection_metadata = metadata.metadata(__package__)
 
