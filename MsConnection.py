@@ -1,9 +1,9 @@
 import json
+import os
 
-from session import Requestor
 import requests
-import exceptions
-import utils
+from .session import Requestor
+from .MsExceptions import MsExceptions
 
 
 class BaseClient:
@@ -32,7 +32,7 @@ class BaseClient:
         if self.endpoint is None:
             raise NotImplementedError("Endpoint not defined")
         if not self.permissions[permission]:
-            raise exceptions.EndpointPermissionError("Subclass does not have permission to use this method")
+            raise MsExceptions.EndpointPermissionError("Subclass does not have permission to use this method")
 
     def all(self, only_id: bool = False, endpoint: str | None = None) -> list:
 
@@ -44,7 +44,7 @@ class BaseClient:
     def get(self, item_id: int | str | None, endpoint: str | None = None):
 
         if item_id is None and endpoint is None:
-            raise exceptions.MissingID("Call has no item_id")
+            raise MsExceptions.MissingID("Call has no item_id")
 
         self._validate_call("get")
         return self._r.get(f"{self.endpoint}/{item_id}" if endpoint is None else endpoint, vnd=self.vnd).json()['data']
@@ -127,6 +127,11 @@ class Batch(BaseClient):
 
 
 class Products(BaseClient):
+
+    """
+    Connecting to the endpoint '/products'.
+    """
+
     endpoint = "products"
     permissions = {
         "all": True,
@@ -170,21 +175,7 @@ class Products(BaseClient):
 
     def update_relationships_categories(self, product_id: int, categories: tuple | list) -> int:
         data = {'data': [{'id': category, 'type': 'categories'} for category in categories]}
-        return self._r.patch(f"products/{product_id}/relationships/categories", str(data).replace("'", '"')).status_code
-
-    # Convenience methods
-
-    def add_product_to_category(self, product_id: int | str, new_categories: tuple | list) -> int:
-        """
-        Adds a product to one or more categories, while keeping the categories the product already has
-        :param product_id: The product to update
-        :param new_categories: Categories to add
-        :return: Status code, 204 if successful
-        """
-        categories_tuple = tuple(new_categories) if isinstance(new_categories, list) else new_categories
-        current_categories = self.relationships_categories(product_id)
-        updated_categories = current_categories + categories_tuple
-        return self.update_relationships_categories(product_id, updated_categories)
+        return self._r.patch(f"products/{product_id}/relationships/categories", json.dumps(data)).status_code
 
 
 class Categories(BaseClient):
@@ -265,13 +256,30 @@ class Images(BaseClient):
         "delete": False,
     }
 
-    def upload_image(self, file_location: str):
-        filename = file_location.split('/')[-1]
-        with open(file_location, 'rb') as file:
+    def upload_image(self, path: str, file_path: str):
+
+        body = (
+            "-----BOUNDARY\r\n"
+            "Content-Disposition: form-data; name=\"image\"; filename=\"image.jpeg\"\r\n"
+            "Content-Type: image/jpeg\r\n"
+            "\r\n"
+            "-----BOUNDARY\r\n"
+        )
+
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        file_type = file_path.split('.')[-1]
+
+        if file_type not in ('jpg', 'jpeg', 'gif', 'png', 'webp'):
+            raise FileNotFoundError(f"File not an image file, filetype: {file_type}")
+
+        with open(file_path, 'rb') as file:
             files = {
-                'image': {filename, file, 'image/jpeg'}
+                'image': (os.path.basename(file_path), file, f"image/{file_type}")  # Adjust content type accordingly
             }
-            self.create()
+
+            return Requestor._request('POST', path, vnd=False, data=body, content_type=None, files=files)
 
 
 class ProductAttributes(BaseClient):
