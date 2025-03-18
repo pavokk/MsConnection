@@ -106,6 +106,12 @@ class Client(BaseClient):
         self.payment = Payment(session, store)
         self.currencies = Currencies(session, store)
         self.languages = Languages(session, store)
+        self.product_tabs = ProductTabs(session, store)
+        self.campaigns = Campaigns(session, store)
+        self.campaign_products = CampaignProducts(session, store)
+        self.stock_groups = StockGroups(session, store)
+        self.stock_group_rules = StockGroupRules(session, store)
+        self.product_tab_descriptions = ProductTabDescriptions(session, store)
 
 
 class Batch(BaseClient):
@@ -383,13 +389,32 @@ class ProductOptionValues(BaseClient):
     endpoint = "product-option-values"
     permissions = {
         "all": True,
-        "get": False,
+        "get": True,
         "create": True,
         "update": True,
         "delete": True,
     }
 
-    # TODO: Add relationships for product-option-values
+    def all_product_options(self, product_option_value_id: str | int):
+        return self.get(f"{product_option_value_id}/relationships/product-options")
+
+    def all_product_suboptions(self, product_option_value_id: str | int):
+        return self.get(f"{product_option_value_id}/relationships/product-suboptions")
+
+    def update_product_suboptions(self, product_option_value_id: str | int, suboption_id: str | int):
+        data = {
+            "data": [
+                {
+                    "id": suboption_id,
+                    "type": "product-suboptions"
+                }
+            ]
+        }
+
+        return self._r.patch(
+            f"product-option-values/{product_option_value_id}/relationships/product-suboptions",
+            data=json.dumps(data)
+        )
 
 
 class ProductProperties(BaseClient):
@@ -409,7 +434,7 @@ class ProductPropertyOptions(BaseClient):
         "all": True,
         "get": True,
         "create": True,
-        "update": False,
+        "update": True,
         "delete": True,
     }
 
@@ -420,7 +445,7 @@ class ProductPropertyValues(BaseClient):
         "all": True,
         "get": True,
         "create": True,
-        "update": False,
+        "update": True,
         "delete": True,
     }
 
@@ -728,6 +753,81 @@ class Languages(BaseClient):
         "all": True,
         "get": False,
         "create": False,
+        "update": False,
+        "delete": False,
+    }
+
+
+class Campaigns(BaseClient):
+    endpoint = "campaigns"
+    permissions = {
+        "all": True,
+        "get": False,
+        "create": False,
+        "update": False,
+        "delete": False,
+    }
+
+    def campaign_products(self, campaign_id: str | int):
+        return self._r.get(f"campaigns/{campaign_id}/campaign-products")
+
+
+class CampaignProducts(BaseClient):
+    endpoint = "campaign-products"
+    permissions = {
+        "all": True,
+        "get": False,
+        "create": False,
+        "update": False,
+        "delete": False,
+    }
+
+
+class StockGroups(BaseClient):
+    endpoint = "stock-groups"
+    permissions = {
+        "all": True,
+        "get": False,
+        "create": False,
+        "update": False,
+        "delete": False,
+    }
+
+    def stock_group_rules(self, stock_group_id: str | int):
+        return self._r.get(f"stock-groups/{stock_group_id}/stock-group-rules")
+
+
+class StockGroupRules(BaseClient):
+    endpoint = "stock-group-rules"
+    permissions = {
+        "all": True,
+        "get": False,
+        "create": False,
+        "update": False,
+        "delete": False,
+    }
+
+
+class ProductTabs(BaseClient):
+    endpoint = 'product-tabs'
+    permissions = {
+        "all": True,
+        "get": False,
+        "create": True,
+        "update": False,
+        "delete": False,
+    }
+
+    def product_tabs_description(self, product_tab_id: str | int):
+        return self._r.get(f"product-tabs/{product_tab_id}/product-tabs-description")
+
+
+class ProductTabDescriptions(BaseClient):
+    endpoint = 'product-tabs-description'
+    permissions = {
+        "all": True,
+        "get": False,
+        "create": True,
         "update": False,
         "delete": False,
     }
