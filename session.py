@@ -9,40 +9,6 @@ from .MsExceptions import MsExceptions
 # from .exceptions import ApiError, ResponseError
 
 
-class Queue:
-    """
-    1. Add jobs to the system. First thought is to have these as tuples with necessary info
-    2. Add some tracker that monitors amount of requests over time
-    3. Make sure requests dont go above the rate limit
-
-    note: AS long as you have less than 120 requests to send per minute you don't actually have to limit. You could
-    send all over 10 seconds, but you will have to wait 50 seconds before sending anything new.
-
-    """
-    def __init__(self, rate: int = 120):
-        self.rate = rate
-        self.queue = []
-
-    def add(
-            self,
-            endpoint: str,
-            method: str,
-            data: str, request_type: str = "request",
-            additional_info: str | None = None
-    ):
-        request = (endpoint, method, data)
-        if additional_info is not None:
-            request += additional_info
-        self.queue.append(request)
-
-    def process(self):
-        """
-        Sends all requests.
-        :return:
-        """
-        pass
-
-
 class Requestor:
     def __init__(self, session: requests.Session, store: str):
         self.session = session
